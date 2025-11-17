@@ -30,7 +30,7 @@ def get_dice_from_blobs(blobs):
     X = np.asarray(X)
 
     if len(X) > 0:
-        clustering = cluster.DBSCAN(eps=45, min_samples=1).fit(X)
+        clustering = cluster.DBSCAN(eps=75, min_samples=1).fit(X)
 
         # Find the largest label assigned + 1, that's the number of dice found
         num_dice = max(clustering.labels_) + 1
@@ -75,19 +75,21 @@ def overlay_info(frame, dice, blobs):
 # Initialize a video feed
 cap = cv2.VideoCapture(0)
 
+cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+
 
 while(True):
     # Grab the latest image from the video feed
     ret, frame = cap.read()
 
-    # We'll define these later
     blobs = get_blobs(frame)
     dice = get_dice_from_blobs(blobs)
     out_frame = overlay_info(frame, dice, blobs)
 
     cv2.imshow("frame", frame)
 
-    res = cv2.waitKey(1)
+    res = cv2.waitKey(100)
 
     # Stop if the user presses "q"
     if res & 0xFF == ord('q'):
