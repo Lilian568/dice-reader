@@ -30,7 +30,7 @@ def get_dice_from_blobs(blobs):
     X = np.asarray(X)
 
     if len(X) > 0:
-        clustering = cluster.DBSCAN(eps=75, min_samples=1).fit(X)
+        clustering = cluster.DBSCAN(eps=90, min_samples=1).fit(X)
 
         # Find the largest label assigned + 1, that's the number of dice found
         num_dice = max(clustering.labels_) + 1
@@ -62,7 +62,6 @@ def overlay_info(frame, dice, blobs):
 
     # Overlay dice number
     for d in dice:
-        # Get textsize for text centering
         textsize = cv2.getTextSize(
             str(d[0]), cv2.FONT_HERSHEY_PLAIN, 3, 2)[0]
 
@@ -72,29 +71,54 @@ def overlay_info(frame, dice, blobs):
                     cv2.FONT_HERSHEY_PLAIN, 3, (0, 255, 0), 2)
 
 
-# Initialize a video feed
-cap = cv2.VideoCapture(0)
+def main():
+    # Initialize a video feed
+    cap = cv2.VideoCapture(0)
 
-cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+    cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+    cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+
+    last_blobs_count = -1
+    last_dice = []
+
+    while(True):
+        print_update = False
+        ret, frame = cap.read()
+
+        blobs = get_blobs(frame)
+        if len(blobs) != last_blobs_count:
+            print_update = True
+        last_blobs_count = len(blobs)
+
+        dice = get_dice_from_blobs(blobs)
+        if len(dice) != len(last_dice):
+            print_update = True
+        else:
+            for i in range(len(dice)):
+                if dice[i][0] != last_dice[i][0]:
+                    print_update = True
+        last_dice = dice
+
+        if print_update:
+            print("Total: ", len(blobs))
+            print("Count: ", len(dice))
+            for d in dice:
+                print("Dice: ", d[0])
+
+        out_frame = overlay_info(frame, dice, blobs)
+
+        cv2.imshow("Dice Reader", frame)
+
+        res = cv2.waitKey(100)
+
+        # Stop if the user presses "q"
+        if res & 0xFF == ord('q'):
+            break
+
+    # When everything is done, release the capture
+    cap.release()
+    cv2.destroyAllWindows()
 
 
-while(True):
-    # Grab the latest image from the video feed
-    ret, frame = cap.read()
-
-    blobs = get_blobs(frame)
-    dice = get_dice_from_blobs(blobs)
-    out_frame = overlay_info(frame, dice, blobs)
-
-    cv2.imshow("frame", frame)
-
-    res = cv2.waitKey(100)
-
-    # Stop if the user presses "q"
-    if res & 0xFF == ord('q'):
-        break
-
-# When everything is done, release the capture
-cap.release()
-cv2.destroyAllWindows()
+if __name__ == "__main__":
+    main()
