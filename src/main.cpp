@@ -3,6 +3,8 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/videoio.hpp>
 
+#include "dbscan.hpp"
+
 cv::Ptr<cv::SimpleBlobDetector> create_blob_detector() {
     cv::SimpleBlobDetector::Params params;
 
@@ -81,7 +83,7 @@ struct DiceInfo {
     float cy;
 };
 
-std::vector<DiceInfo> get_dice_from_blobs(const std::vector<cv::KeyPoint> &blobs) {
+std::vector<DiceInfo> get_dice_from_blobs(const std::vector<cv::KeyPoint> &blobs, const double eps) {
 
     std::vector<cv::Point2f> pts;
     for (const auto &b : blobs)
@@ -89,15 +91,14 @@ std::vector<DiceInfo> get_dice_from_blobs(const std::vector<cv::KeyPoint> &blobs
 
     if (pts.empty()) return {};
 
-    // DBSCAN eps=75, min_samples=1 (same as Python)
-    DBSCAN db(75.0, 1);
+    DBSCAN db(eps, 1);
     std::vector<int> labels = db.fit(pts);
 
-    int numClusters = *max_element(labels.begin(), labels.end()) + 1;
+    int num_clusters = *max_element(labels.begin(), labels.end()) + 1;
 
     std::vector<DiceInfo> dice;
 
-    for (int c = 0; c < numClusters; c++) {
+    for (int c = 0; c < num_clusters; c++) {
         std::vector<cv::Point2f> group;
 
         for (size_t i = 0; i < pts.size(); i++)
@@ -130,15 +131,22 @@ void overlay_info(cv::Mat &frame, const std::vector<DiceInfo> &dice, const std::
         std::string text = std::to_string(d.dots);
 
         int baseline = 0;
-        cv::Size textSize = cv::getTextSize(text, cv::FONT_HERSHEY_PLAIN, 3, 2, &baseline);
+        cv::Size text_size = cv::getTextSize(text, cv::FONT_HERSHEY_PLAIN, 3, 2, &baseline);
 
-        cv::Point pos((int)(d.cx - textSize.width / 2), (int)(d.cy + textSize.height / 2));
+        cv::Point pos((int)(d.cx - text_size.width / 2), (int)(d.cy + text_size.height / 2));
 
         cv::putText(frame, text, pos, cv::FONT_HERSHEY_PLAIN, 3, cv::Scalar(0, 255, 0), 2);
     }
 }
 
 int main(int argc, char *argv[]) {
+    if (argc != 2) {
+        std::cerr << "Usage: " << argv[0] << " <epsilon>" << std::endl;
+        return 1;
+    }
+
+    double eps = std::stod(argv[1]);
+
     // Initialize the camera
     cv::VideoCapture cap(0);
     cap.set(cv::CAP_PROP_FRAME_WIDTH, 1280);
@@ -165,7 +173,7 @@ int main(int argc, char *argv[]) {
             std::vector<cv::KeyPoint> keypoints = gather_blobs(detector, output);
             std::cout << keypoints.size() << std::endl;
 
-            dice = get_dice_from_blobs(keypoints);
+            dice = get_dice_from_blobs(keypoints, eps);
 
             counter = 0;
         } else {
