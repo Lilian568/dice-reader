@@ -1,6 +1,0 @@
-[submodule "external/clustering"]
-	path = external/clustering
-	url = https://github.com/Lallapallooza/clustering.git
-[submodule "external/dbscan"]
-	path = external/dbscan
-	url = https://github.com/Eleobert/dbscan.git
